@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Record Generator Pro</title>
+    <!-- jsPDF Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* CLASSICAL LIGHT THEME */
+        :root {
+            --bg-color: #f3f4f6; /* Light grey background */
+            --surface: #ffffff;  /* White panels */
+            --primary: #2563eb;  /* Classic Blue */
+            --secondary: #475569; /* Slate grey */
+            --accent: #10b981;   /* Emerald Green */
+            --text-main: #1f2937; /* Dark Grey/Black */
+            --text-muted: #6b7280;
+            --border: #d1d5db;
+            --danger: #ef4444;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+        body { background-color: var(--bg-color); color: var(--text-main); line-height: 1.6; padding: 20px; }
+
+        .container { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr; gap: 20px; }
+
+        .header { text-align: center; margin-bottom: 10px; position: relative; }
+        .header h1 { font-size: 2.2rem; color: var(--primary); font-weight: 700; letter-spacing: 1px; margin-bottom: 5px; }
+        .header p { color: var(--text-muted); font-size: 0.95rem; }
+
+        .btn-settings { position: absolute; right: 0; top: 0; background: var(--surface); border: 1px solid var(--border); color: var(--text-main); padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: 600; box-shadow: var(--shadow); transition: 0.2s; }
+        .btn-settings:hover { border-color: var(--primary); color: var(--primary); }
+
+        .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 25px; box-shadow: var(--shadow); }
+        .panel-title { font-size: 1.1rem; font-weight: 600; color: var(--text-main); margin-bottom: 20px; border-bottom: 2px solid var(--bg-color); padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+
+        .input-group { display: flex; flex-direction: column; margin-bottom: 15px; }
+        .input-group label { font-size: 0.85rem; font-weight: 600; color: var(--secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        input, select, textarea { background: #f9fafb; border: 1px solid var(--border); color: var(--text-main); padding: 10px 12px; border-radius: 6px; outline: none; transition: 0.2s; width: 100%; font-size: 0.95rem; }
+        input:focus, select:focus, textarea:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+        
+        textarea { resize: vertical; min-height: 100px; font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; }
+        
+        button { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.9rem; }
+        button:hover { background: #1d4ed8; }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        button.secondary { background: #f8fafc; border: 1px solid var(--border); color: var(--text-main); }
+        button.secondary:hover { background: #f1f5f9; border-color: var(--secondary); }
+        
+        button.success { background: var(--accent); color: white; }
+        button.success:hover { background: #059669; }
+
+        .status-badge { font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; font-weight: 600; }
+        .status-success { background: #d1fae5; color: #065f46; border: 1px solid #34d399; }
+        .status-error { background: #fee2e2; color: #991b1b; border: 1px solid #f87171; }
+        .status-info { background: #e0f2fe; color: #075985; border: 1px solid #7dd3fc; }
+
+        /* MODAL STYLES */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.4); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(2px); }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: var(--surface); padding: 30px; border-radius: 8px; width: 100%; max-width: 500px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+        .modal-content h2 { margin-bottom: 20px; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        
+        .auto-save-indicator { font-size: 0.75rem; color: var(--accent); display: flex; align-items: center; gap: 5px; opacity: 0; transition: opacity 0.3s; }
+        .auto-save-indicator.visible { opacity: 1; }
+
+        /* Asset Load Status */
+        .asset-status { font-size: 0.8rem; color: var(--secondary); display: flex; gap: 15px; justify-content: center; margin-top: -10px; margin-bottom: 20px; }
+        .asset-item { display: flex; align-items: center; gap: 5px; }
+        .indicator { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
+        .indicator.loaded { background: var(--accent); }
+
+        @media (max-width: 768px) {
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+            .btn-settings { position: relative; margin-top: 15px; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Record Generator Pro</h1>
+        <p>Classical Edition • Offline Storage Enabled</p>
+        <button class="btn-settings" onclick="toggleSettings()">⚙️ Settings</button>
+    </div>
+
+    <!-- ASSET LOADING STATUS -->
+    <div class="asset-status">
+        <div class="asset-item"><div id="indLogo" class="indicator"></div> logo.png</div>
+        <div class="asset-item"><div id="indFont" class="indicator"></div> font.woff</div>
+    </div>
+
+    <!-- AI VISION HUB -->
+    <div class="panel">
+        <div class="panel-title">
+            <span>🧠 AI Vision Hub</span>
+            <span id="aiStatus"></span>
+        </div>
+        <div class="grid-2">
+            <div class="input-group">
+                <label>Upload Record Image</label>
+                <input type="file" id="aiImage" accept="image/*" style="background: #fff;">
+            </div>
+            <div class="input-group" style="justify-content: flex-end;">
+                <button onclick="scanWithAI()" id="btnScan" class="secondary" style="height: 42px; margin-bottom: 2px;">
+                    Scan & Auto-Fill Form
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RECORD FORM -->
+    <div class="panel">
+        <div class="panel-title">
+            <span>📄 Record Details</span>
+            <span class="auto-save-indicator" id="saveIndicator">✓ Saved locally</span>
+        </div>
+        <div class="grid-2">
+            <div class="input-group">
+                <label>Student Name</label>
+                <input type="text" id="studentName" placeholder="E.g. Barath S">
+            </div>
+            <div class="input-group">
+                <label>Register Number</label>
+                <input type="text" id="regNo" placeholder="E.g. 710725105007">
+            </div>
+            <div class="input-group">
+                <label>Experiment Number</label>
+                <input type="text" id="expNo" placeholder="E.g. 1(A)">
+            </div>
+            <div class="input-group">
+                <label>Date</label>
+                <input type="text" id="expDate" placeholder="E.g. 12/10/2023">
+            </div>
+        </div>
+        <div class="input-group">
+            <label>Experiment Title</label>
+            <input type="text" id="expTitle" placeholder="I/O STATEMENTS">
+        </div>
+
+        <div class="input-group">
+            <label>Aim</label>
+            <textarea id="aim" placeholder="To write and execute a c program..."></textarea>
+        </div>
+        <div class="input-group">
+            <label>Algorithm</label>
+            <textarea id="algorithm" placeholder="Step 1: Start the program..."></textarea>
+        </div>
+    </div>
+
+    <!-- COMPILER HUB -->
+    <div class="panel">
+        <div class="panel-title">⚡ Wandbox Compiler Hub</div>
+        <div class="input-group">
+            <label>Program (Source Code)</label>
+            <textarea id="program" style="min-height: 250px;" placeholder="#include <stdio.h>\n\nint main() {\n    return 0;\n}"></textarea>
+        </div>
+        <div class="grid-2">
+            <div class="input-group">
+                <label>Standard Input (stdin for scanf)</label>
+                <textarea id="stdin" style="min-height: 100px;" placeholder="Enter input values separated by spaces/newlines..."></textarea>
+            </div>
+            <div class="input-group">
+                <label>Compiler Output</label>
+                <textarea id="output" style="min-height: 100px; background: #f1f5f9;" placeholder="Compiled output will appear here..."></textarea>
+            </div>
+        </div>
+        <button onclick="compileCode()" id="btnCompile" class="secondary" style="width: 100%;">
+            Compile & Run Code (Wandbox API)
+        </button>
+    </div>
+
+    <!-- RESULT & EXPORT -->
+    <div class="panel">
+        <div class="input-group">
+            <label>Result</label>
+            <textarea id="result" placeholder="Thus the C program has been executed successfully..."></textarea>
+        </div>
+        
+        <div class="grid-2" style="margin-top: 20px;">
+            <button onclick="clearFormData()" class="secondary">🗑️ Clear Local Data</button>
+            <button onclick="generatePDF()" id="btnGenerate" class="success">
+                Generate Formal PDF
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="settingsModal" class="modal-overlay">
+    <div class="modal-content">
+        <h2>System Settings</h2>
+        
+        <div class="input-group">
+            <label>AI Provider</label>
+            <select id="aiProvider">
+                <option value="gemini">Google Gemini (2.5 Flash Preview)</option>
+                <option value="openai">OpenAI (GPT-4o)</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label>API Key</label>
+            <input type="password" id="apiKey" placeholder="Paste your API key here...">
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 25px;">
+            <button onclick="saveSettings()" style="flex: 1;">Save Configuration</button>
+            <button onclick="toggleSettings()" class="secondary" style="flex: 1;">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // System Variables
+    let watermarkBase64 = null;
+    let customFontBase64 = null;
+
+    // Fields to track for Local Storage
+    const formFields = ['studentName', 'regNo', 'expNo', 'expDate', 'expTitle', 'aim', 'algorithm', 'program', 'stdin', 'output', 'result'];
+
+    // --- INITIALIZATION & AUTO-SAVE ---
+    window.onload = async () => {
+        // Load Settings
+        document.getElementById('aiProvider').value = localStorage.getItem('aiProvider') || 'gemini';
+        document.getElementById('apiKey').value = localStorage.getItem('apiKey') || '';
+
+        // Load Form Data
+        formFields.forEach(id => {
+            const val = localStorage.getItem(id);
+            if (val !== null) document.getElementById(id).value = val;
+            
+            // Attach event listener for Auto-Save
+            document.getElementById(id).addEventListener('input', () => {
+                localStorage.setItem(id, document.getElementById(id).value);
+                triggerSaveIndicator();
+            });
+        });
+
+        // Load Assets (Logo & Font)
+        await loadAssets();
+    };
+
+    let saveTimeout;
+    function triggerSaveIndicator() {
+        const ind = document.getElementById('saveIndicator');
+        ind.classList.add('visible');
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => { ind.classList.remove('visible'); }, 2000);
+    }
+
+    function clearFormData() {
+        if(confirm("Are you sure you want to clear all form data? This cannot be undone.")) {
+            formFields.forEach(id => {
+                document.getElementById(id).value = '';
+                localStorage.removeItem(id);
+            });
+            alert("Local data cleared.");
+        }
+    }
+
+    // --- MODAL SETTINGS ---
+    function toggleSettings() {
+        const modal = document.getElementById('settingsModal');
+        modal.classList.toggle('active');
+    }
+
+    function saveSettings() {
+        localStorage.setItem('aiProvider', document.getElementById('aiProvider').value);
+        localStorage.setItem('apiKey', document.getElementById('apiKey').value);
+        toggleSettings();
+        triggerSaveIndicator();
+    }
+
+    // --- ASSET LOADER (Github Directory files) ---
+    async function loadAssets() {
+        // 1. Fetch Logo
+        try {
+            const wmRes = await fetch('./logo.png');
+            if (wmRes.ok) {
+                const blob = await wmRes.blob();
+                const reader = new FileReader();
+                reader.onload = (e) => { watermarkBase64 = e.target.result; };
+                reader.readAsDataURL(blob);
+                document.getElementById('indLogo').classList.add('loaded');
+            }
+        } catch(e) { console.warn("logo.png not found in directory."); }
+
+        // 2. Fetch Font
+        try {
+            const fontRes = await fetch('./font.woff');
+            if (fontRes.ok) {
+                const buffer = await fontRes.arrayBuffer();
+                let binary = '';
+                const bytes = new Uint8Array(buffer);
+                for (let i = 0; i < bytes.byteLength; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                customFontBase64 = window.btoa(binary);
+                document.getElementById('indFont').classList.add('loaded');
+            }
+        } catch(e) { console.warn("font.woff not found in directory."); }
+    }
+
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+    }
+
+    // --- AI SCANNER (GEMINI / OPENAI) ---
+    async function scanWithAI() {
+        const fileInput = document.getElementById('aiImage');
+        const apiKey = document.getElementById('apiKey').value.trim();
+        const provider = document.getElementById('aiProvider').value;
+        const btn = document.getElementById('btnScan');
+        const status = document.getElementById('aiStatus');
+
+        if (!apiKey) return alert("Please enter your API Key in Settings (⚙️).");
+        if (!fileInput.files.length) return alert("Please upload an image to scan.");
+
+        btn.disabled = true;
+        btn.innerText = "Analyzing Image...";
+        status.innerHTML = '<span class="status-badge status-info">Processing...</span>';
+
+        try {
+            const file = fileInput.files[0];
+            const base64Full = await fileToBase64(file);
+            const base64Data = base64Full.split(',')[1];
+            const mimeType = file.type;
+
+            const promptText = `Analyze this lab record image. Extract and rectify any OCR errors. Output strictly as a JSON object with these exact string keys: "name", "regNo", "expNo", "date", "title", "aim", "algorithm", "program", "output", "result". If a field is missing, use an empty string. Ensure the program code is formatted properly with newlines. Do not include markdown formatting or \`\`\`json wrappers in the response. Just the raw JSON object.`;
+
+            let extractedJson = "";
+
+            if (provider === 'gemini') {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+                const payload = {
+                    contents: [{
+                        parts: [
+                            { text: promptText },
+                            { inlineData: { mimeType: mimeType, data: base64Data } }
+                        ]
+                    }],
+                    generationConfig: { responseMimeType: "application/json" }
+                };
+
+                const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!res.ok) {
+                    let errorText = res.statusText;
+                    try { const errData = await res.json(); if (errData.error && errData.error.message) errorText = errData.error.message; } catch(e) {}
+                    throw new Error("Gemini API Error: " + (errorText || "Request Failed"));
+                }
+                const data = await res.json();
+                extractedJson = data.candidates[0].content.parts[0].text;
+
+            } else if (provider === 'openai') {
+                const url = `https://api.openai.com/v1/chat/completions`;
+                const payload = {
+                    model: "gpt-4o",
+                    messages: [{
+                        role: "user",
+                        content: [
+                            { type: "text", text: promptText },
+                            { type: "image_url", image_url: { url: base64Full } }
+                        ]
+                    }],
+                    response_format: { type: "json_object" }
+                };
+
+                const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` }, body: JSON.stringify(payload) });
+                if (!res.ok) {
+                    let errorText = res.statusText;
+                    try { const errData = await res.json(); if (errData.error && errData.error.message) errorText = errData.error.message; } catch(e) {}
+                    throw new Error("OpenAI API Error: " + (errorText || "Request Failed"));
+                }
+                const data = await res.json();
+                extractedJson = data.choices[0].message.content;
+            }
+
+            // Parse and fill
+            const result = JSON.parse(extractedJson);
+            
+            formFields.forEach(id => {
+                if (result[id] !== undefined) {
+                    document.getElementById(id).value = result[id] || '';
+                    localStorage.setItem(id, result[id] || ''); // Auto-save filled data
+                }
+            });
+
+            status.innerHTML = '<span class="status-badge status-success">✓ Auto-filled</span>';
+            triggerSaveIndicator();
+        } catch (error) {
+            console.error(error);
+            status.innerHTML = `<span class="status-badge status-error">✖ ${error.message}</span>`;
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Scan & Auto-Fill Form";
+        }
+    }
+
+    // --- WANDBOX COMPILER ---
+    async function compileCode() {
+        const code = document.getElementById('program').value.trim();
+        const stdin = document.getElementById('stdin').value;
+        const btn = document.getElementById('btnCompile');
+        const outBox = document.getElementById('output');
+
+        if (!code) return alert("Please write or scan some code first.");
+
+        btn.disabled = true;
+        btn.innerText = "Compiling & Running...";
+        outBox.value = "Executing on Wandbox servers...";
+
+        try {
+            const response = await fetch('https://wandbox.org/api/compile.json', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    compiler: 'gcc-head', // Latest GCC Compiler
+                    code: code,
+                    stdin: stdin,
+                    save: false
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.status === '0') {
+                outBox.value = data.program_output || "Program finished with no output.";
+            } else {
+                outBox.value = "COMPILER ERROR:\n" + (data.compiler_error || data.program_error);
+            }
+            
+            // Auto save the compiler result
+            localStorage.setItem('output', outBox.value);
+            triggerSaveIndicator();
+
+        } catch (error) {
+            console.error(error);
+            outBox.value = "Failed to reach Wandbox API. " + error.message;
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Compile & Run Code (Wandbox API)";
+        }
+    }
+
+    // --- PDF GENERATION ---
+    function generatePDF() {
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            
+            const data = {};
+            formFields.forEach(id => {
+                data[id] = document.getElementById(id).value.trim();
+            });
+
+            const pageWidth = 210;
+            const pageHeight = 297;
+            const margin = 20;
+            const contentWidth = pageWidth - (margin * 2);
+            let currentY = 20;
+            let pageNum = 1;
+
+            const courseFooter = "22UCS202-C Programming";
+
+            // Load Custom Font if fetched successfully
+            if (customFontBase64) {
+                doc.addFileToVFS('custom_font.woff', customFontBase64);
+                doc.addFont('custom_font.woff', 'CustomOutputFont', 'normal');
+            }
+
+            function drawBackgroundAndFooter() {
+                doc.setLineWidth(0.5);
+                doc.setDrawColor(0, 0, 0);
+
+                if (watermarkBase64) {
+                    doc.saveGraphicsState();
+                    doc.setGState(new doc.GState({ opacity: 0.15 }));
+                    doc.addImage(watermarkBase64, 'PNG', 40, 80, 130, 130);
+                    doc.restoreGraphicsState();
+                }
+
+                // Footer
+                doc.setFont("times", "normal");
+                doc.setFontSize(11);
+                doc.text(courseFooter, pageWidth - margin, pageHeight - 15, { align: 'right' });
+            }
+
+            function drawHeader() {
+                doc.setFont("times", "normal");
+                doc.setFontSize(12);
+                
+                doc.text(`Name: ${data.studentName}`, margin, currentY);
+                doc.text(`Reg no: ${data.regNo}`, pageWidth - margin, currentY, { align: 'right' });
+                currentY += 10;
+
+                if (pageNum === 1) {
+                    doc.text(`Exp.no: ${data.expNo}`, margin, currentY);
+                    doc.text(`Date: ${data.expDate}`, pageWidth - 45, currentY); 
+                    currentY += 15;
+
+                    doc.setFont("times", "bold");
+                    doc.setFontSize(14);
+                    const titleLines = doc.splitTextToSize(data.expTitle.toUpperCase(), contentWidth);
+                    doc.text(titleLines, pageWidth / 2, currentY, { align: 'center' });
+                    currentY += (titleLines.length * 7) + 10;
+                } else {
+                    currentY += 5;
+                }
+            }
+
+            function checkPageBreak(linesNeeded = 1) {
+                const lineHeight = 7;
+                if (currentY + (linesNeeded * lineHeight) > pageHeight - 25) {
+                    doc.addPage();
+                    pageNum++;
+                    currentY = 20;
+                    drawBackgroundAndFooter();
+                    drawHeader();
+                }
+            }
+
+            // Init Page 1
+            drawBackgroundAndFooter();
+            drawHeader();
+
+            const sections = [
+                { heading: "AIM:", text: data.aim },
+                { heading: "ALGORITHM:", text: data.algorithm },
+                { heading: "PROGRAM:", text: data.program, isCode: true },
+                { heading: "OUTPUT:", text: data.output, isCode: true, useSpecialFont: true },
+                { heading: "RESULT:", text: data.result }
+            ];
+
+            sections.forEach(sec => {
+                if (!sec.text) return;
+                
+                checkPageBreak(3); 
+                
+                // Heading
+                doc.setFont("times", "bold");
+                doc.setFontSize(12);
+                doc.text(sec.heading, margin, currentY);
+                currentY += 8;
+
+                // Content Font Selection
+                if (sec.useSpecialFont && customFontBase64) {
+                    doc.setFont('CustomOutputFont', 'normal');
+                    doc.setFontSize(11);
+                } else if (sec.isCode) {
+                    doc.setFont('courier', 'normal');
+                    doc.setFontSize(11);
+                } else {
+                    doc.setFont("times", "normal");
+                    doc.setFontSize(12);
+                }
+
+                const lines = sec.isCode ? sec.text.split('\n') : [sec.text];
+
+                lines.forEach(line => {
+                    let textToPrint = line.replace(/\t/g, '    ');
+                    
+                    const splitLines = doc.splitTextToSize(textToPrint, contentWidth);
+                    splitLines.forEach(splitLine => {
+                        checkPageBreak(1);
+                        doc.text(splitLine, margin, currentY);
+                        currentY += 7;
+                    });
+                });
+
+                currentY += 5; 
+            });
+
+            doc.save(`${data.regNo}_${data.expNo}_Record.pdf`);
+
+        } catch (error) {
+            console.error(error);
+            alert("Error generating PDF. Check console.");
+        }
+    }
+</script>
+
+</body>
+</html>
